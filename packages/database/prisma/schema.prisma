@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum EntityType {
+  CONTACTS
+  COMPANIES
+  INVOICES
+  PRODUCTS
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sourceFiles      SourceFile[]
+  imports          ImportRun[]
+  transformations  Transformation[]
+  unifiedDatasets  UnifiedDataset[]
+
+  @@map("projects")
+}
+
+model SourceFile {
+  id             String   @id @default(cuid())
+  projectId      String
+  originalName   String
+  storagePath    String
+  mimeType       String   @default("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  sizeBytes      Int      @default(0)
+  detectedSheets Json?
+  uploadedAt     DateTime @default(now())
+
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  dataSets        DataSet[]
+  transformations Transformation[]
+
+  @@map("source_files")
+}
+
+model DataSet {
+  id           String   @id @default(cuid())
+  sourceFileId String
+  sheetName    String
+  headerRow    Int      @default(1)
+  data         Json
+  createdAt    DateTime @default(now())
+
+  sourceFile  SourceFile       @relation(fields: [sourceFileId], references: [id], onDelete: Cascade)
+  imports     ImportRun[]
+  transformations Transformation[]
+
+  @@map("datasets")
+}
+
+model Transformation {
+  id           String   @id @default(cuid())
+  projectId    String
+  sourceFileId String?
+  dataSetId    String?
+  entityType   EntityType
+  name         String
+  config       Json
+  status       String   @default("DRAFT")
+  meta         Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceFile SourceFile? @relation(fields: [sourceFileId], references: [id], onDelete: SetNull)
+  dataSet    DataSet?    @relation(fields: [dataSetId], references: [id], onDelete: SetNull)
+  imports    ImportRun[]
+
+  @@map("transformations")
+}
+
+model UnifiedDataset {
+  id            String   @id @default(cuid())
+  projectId     String
+  entityType    EntityType
+  name          String
+  data          Json
+  stats         Json?
+  validationLog Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  imports ImportRun[]
+
+  @@map("unified_datasets")
+}
+
+model ImportRun {
+  id                String   @id @default(cuid())
+  projectId         String
+  dataSetId         String?
+  transformationId  String?
+  unifiedDatasetId  String?
+  entityType        EntityType
+  status            RunStatus @default(PENDING)
+  summary           Json?
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  dataSet         DataSet?        @relation(fields: [dataSetId], references: [id], onDelete: SetNull)
+  transformation  Transformation? @relation(fields: [transformationId], references: [id], onDelete: SetNull)
+  unifiedDataset  UnifiedDataset? @relation(fields: [unifiedDatasetId], references: [id], onDelete: SetNull)
+
+  @@map("import_runs")
+}
