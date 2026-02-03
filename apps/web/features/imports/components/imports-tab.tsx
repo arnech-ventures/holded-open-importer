@@ -16,7 +16,7 @@ export default function ImportsTab({ projectId, entityType }: ImportsTabProps) {
   const [mode, setMode] = useState<'wizard' | 'technical'>('wizard');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" suppressHydrationWarning>
       {/* Mode toggle */}
       <Card>
         <CardHeader>
